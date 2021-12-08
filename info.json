@@ -1,6 +1,7 @@
 {
   "author": ["Eldolfin#1716"],
   "description": "Les cogs de Eldolfin",
+  "short" : "Les cogs de Eldolfin",
   "install_msg": "\uD83D\uDC4D",
   "tags": ["SecretSanta","NoelCanadien","Noel"]
 }
