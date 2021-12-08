@@ -11,10 +11,6 @@ TODO:
 '''
 
 
-def setup(bot):
-    bot.add_cog(SecretSanta(bot))
-
-
 async def get_message_by_id(id, guild: discord.Guild):
     for channel in guild.text_channels:
         try:
