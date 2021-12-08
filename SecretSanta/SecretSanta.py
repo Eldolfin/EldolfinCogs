@@ -8,8 +8,6 @@ from random import choice
 
 '''
 TODO:
--Logging channel
-
 '''
 
 
@@ -34,7 +32,7 @@ async def reveal_picked(user, picked_user):
         await asyncio.sleep(0.7)
         await message.edit(content=message.content + ".")
         await counter.edit(content="**" + str(9 - i) + "**")
-    await message.edit(content="**" + picked_user.display_name + "!**")
+    await message.edit(content="**" + picked_user.display_name+"#"+user.discriminator + "!**")
     await user.send(picked_user.avatar_url)
     await user.send("🎁")
     await counter.delete()
@@ -53,6 +51,7 @@ class SecretSanta(commands.Cog):
             "participant_role": -1,
             "signed_users": [],
             "unpicked_users": [],
+            "logging_channel": -1,
         }
         userconf = {
             "signup_time": "never",
@@ -65,38 +64,50 @@ class SecretSanta(commands.Cog):
     @commands.guild_only()
     @commands.admin()
     async def secretsantaadmin(self, ctx: commands.Context):
+        """Admin commands for the SecretSanta Cog"""
         pass
 
     @secretsantaadmin.group(name="set")
     async def secretsantaadmin_set(self, ctx):
+        """Sets all the settings you need for the SecretSanta Cog to work"""
         pass
 
     @commands.group()
-    @commands.guild_only()
     async def secretsanta(self, ctx: commands.Context):
+        """SecretSanta user's commands, see secretsantaadmin"""
         pass
 
     @secretsantaadmin_set.command(name="role")
     async def setsanta_role(self, ctx: commands.Context, role: discord.Role):
+        """Sets the role that will be given on signup"""
         await ctx.send("Role set: " + role.name)
         await self.config.guild(ctx.guild).participant_role.set(role.id)
 
     @secretsantaadmin_set.command(name="signup_message")
     async def setsanta_signup(self, ctx: commands.Context, messageid):
+        """Sets the message that will be given the reaction role to signup"""
         message = await get_message_by_id(messageid, ctx.guild)
         await message.add_reaction('🎅')
         await ctx.send("Reaction added to message: " + message.content)
         await self.config.guild(ctx.guild).signup_message.set(message.id)
 
+    @secretsantaadmin_set.command(name="logging_channel")
+    async def setsanta_logging(self, ctx: commands.Context, channel: discord.TextChannel):
+        """Sets the logging channel, where people signing up will be showns as well as people picking people"""
+        await self.config.guild(ctx.guild).logging_channel.set(channel.id)
+        await ctx.send("Logging channel set to: " + channel.name)
+
     @secretsanta.command(name="pick")
     async def secretsanta_pick(self, ctx: commands.Context):
+        """Picks a random user, you can't pick again!"""
         author = ctx.message.author
         await author.trigger_typing()
-        if author.id not in (await self.config.guild(ctx.guild).signed_users()):
+        guild = discord.utils.get(self.bot.get_all_members(), id=author.id).guild
+        if author.id not in (await self.config.guild(guild).signed_users()):
             await ctx.send("Tu ne t'es pas inscrit au noël canadien!")
             return
         if await self.config.user(author).picked_user() == -1:
-            async with self.config.guild(ctx.guild).unpicked_users() as users:
+            async with self.config.guild(guild).unpicked_users() as users:
                 choosables = users.copy()
                 while choosables.count(author.id):
                     choosables.remove(author.id)
@@ -106,31 +117,39 @@ class SecretSanta(commands.Cog):
                 picked_userid = choice(choosables)
                 users.remove(picked_userid)
             await self.config.user(author).picked_user.set(picked_userid)
-            picked_user = await ctx.guild.fetch_member(picked_userid)
+            picked_user = await guild.fetch_member(picked_userid)
+            await guild.get_channel(await self.config.guild(guild).logging_channel()).send(
+                author.name+" a pioché ||"+picked_user.display_name+"#"+picked_user.discriminator+"||")
             await reveal_picked(author, picked_user)
         else:
-            picked_user = await ctx.guild.fetch_member(await self.config.user(author).picked_user())
+            picked_user = await guild.fetch_member(await self.config.user(author).picked_user())
             await author.send("Vous avez déjà pioché: " + picked_user.display_name)
 
     @secretsantaadmin.command(name="getconf")
     async def secretsantaadmin_getconf(self, ctx: commands.Context):
+        """Shows the guild's settings regarding SecretSanta"""
         await ctx.trigger_typing()
         signup_message = await get_message_by_id(await self.config.guild(ctx.guild).signup_message(), ctx.guild)
         roleid = await self.config.guild(ctx.guild).participant_role()
         role = discord.utils.get(ctx.guild.roles, id=roleid)
+        logging_channel = ctx.guild.get_channel(await self.config.guild(ctx.guild).logging_channel())
         await ctx.send("Current settings:" +
                        "\nrole: " + role.name +
-                       "\nsignup_message: " + signup_message.content)
+                       "\nsignup_message: " + signup_message.content +
+                       "\nlogging_channel: " + logging_channel.name)
 
     @secretsantaadmin.command(name="resetconfig")
     async def secretsantaadmin_resetconfig(self, ctx: commands.Context):
+        """Resets guild settings, but not data (signups and picked users), use resetdata as well!"""
         await ctx.trigger_typing()
         await self.config.guild(ctx.guild).signup_message.clear()
         await self.config.guild(ctx.guild).participant_role.clear()
+        await self.config.guild(ctx.guild).logging_channel.clear()
         await ctx.send("Config successfully cleared!")
 
     @secretsantaadmin.command(name="resetdata")
     async def secretsantaadmin_resetdata(self, ctx: commands.Context):
+        """Resets user data, including signups and who they picked"""
         await ctx.trigger_typing()
         for userid in await self.config.guild(ctx.guild).signed_users():
             await self.config.user_from_id(userid).clear()
@@ -160,13 +179,15 @@ class SecretSanta(commands.Cog):
             await self.config.user(user).signup_time.set(datetime.now().strftime("%H:%M:%S.%f %d/%b/%Y"))
 
             await user.send("Bravo tu t'es inscrit au Secret Santa 🎅\n" +
-                            "Tu peux ecrire !secretsanta pick pour piocher quelqu'un")
+                            "Tu peux écrire __!secretsanta pick__ pour piocher quelqu'un")
+
+            await message.guild.get_channel(await guildconf.logging_channel()).send(user.display_name+" s'est inscrit!")
 
     @commands.Cog.listener()
     async def on_raw_reaction_remove(self, payload):
         message: discord.Message = await (await self.bot.fetch_channel(payload.channel_id)).fetch_message(
             payload.message_id)
-        reaction = discord.utils.get(message.reactions,emoji="🎅")
+        reaction = discord.utils.get(message.reactions, emoji="🎅")
         # message: discord.Message = reaction.message
         user = await self.bot.fetch_user(payload.user_id)
         guildconf = self.config.guild(message.guild)
