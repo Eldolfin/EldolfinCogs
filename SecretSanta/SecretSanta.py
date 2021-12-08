@@ -52,6 +52,7 @@ class SecretSanta(commands.Cog):
             "signed_users": [],
             "unpicked_users": [],
             "logging_channel": -1,
+            "pick_released": False,
         }
         userconf = {
             "signup_time": "never",
@@ -97,6 +98,11 @@ class SecretSanta(commands.Cog):
         await self.config.guild(ctx.guild).logging_channel.set(channel.id)
         await ctx.send("Logging channel set to: " + channel.name)
 
+    @secretsantaadmin_set.command(name="can_pick")
+    async def setsanta_canpick(self,ctx: commands.Context,can_pick:bool):
+        await self.config.guild(ctx.guild).pick_released.set(can_pick)
+        await ctx.send("Users can now pick!" if can_pick else "Users can no longer pick")
+
     @secretsanta.command(name="pick")
     async def secretsanta_pick(self, ctx: commands.Context):
         """Picks a random user, you can't pick again!"""
@@ -105,6 +111,9 @@ class SecretSanta(commands.Cog):
         guild = discord.utils.get(self.bot.get_all_members(), id=author.id).guild
         if author.id not in (await self.config.guild(guild).signed_users()):
             await ctx.send("Tu ne t'es pas inscrit au noël canadien!")
+            return
+        if not await self.config.guild(ctx.guild).pick_released():
+            await ctx.send("Impossible de piocher pour l'instant")
             return
         if await self.config.user(author).picked_user() == -1:
             async with self.config.guild(guild).unpicked_users() as users:
@@ -164,7 +173,7 @@ class SecretSanta(commands.Cog):
         # message: discord.Message = reaction.message
         user = payload.member
         guildconf = self.config.guild(message.guild)
-        if message.id == await guildconf.signup_message() and user.id not in (await guildconf.signed_users()):
+        if not user.bot and message.id == await guildconf.signup_message() and user.id not in (await guildconf.signed_users()):
             async with guildconf.signed_users() as users:
                 users.append(user.id)
 

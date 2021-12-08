@@ -1,7 +1,7 @@
 {
   "author": ["eldolfin"],
   "description": "Un cog secret santa",
-  "install_msg": "!help secretsanta pour avoir de l'aide",
+  "install_msg": "!help secretsanta/secretsantaadmin pour avoir de l'aide",
   "short": "Un cog secret santa",
   "required_cogs": {},
   "requirements": []
