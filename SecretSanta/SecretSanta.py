@@ -1,8 +1,7 @@
 import asyncio
 
 import discord
-import redbot.core.config
-from redbot.core import commands, bot, checks, Config, data_manager
+from redbot.core import commands, bot, Config
 from datetime import datetime
 from random import choice
 
@@ -70,6 +69,7 @@ class SecretSanta(commands.Cog):
         pass
 
     @commands.group()
+    @commands.guild_only()
     async def secretsanta(self, ctx: commands.Context):
         """SecretSanta user's commands, see secretsantaadmin"""
         pass
@@ -104,7 +104,8 @@ class SecretSanta(commands.Cog):
         """Picks a random user, you can't pick again!"""
         author = ctx.message.author
         await author.trigger_typing()
-        guild = discord.utils.get(self.bot.get_all_members(), id=author.id).guild
+        # guild = discord.utils.get(self.bot.get_all_members(), id=author.id).guild
+        guild = ctx.guild
         if author.id not in (await self.config.guild(guild).signed_users()):
             await ctx.send("Tu ne t'es pas inscrit au noël canadien!")
             return
@@ -184,7 +185,7 @@ class SecretSanta(commands.Cog):
             await self.config.user(user).signup_time.set(datetime.now().strftime("%H:%M:%S.%f %d/%b/%Y"))
 
             await user.send("Bravo tu t'es inscrit au Secret Santa 🎅\n" +
-                            "Tu peux écrire __!secretsanta pick__ pour piocher quelqu'un")
+                            "Tu peux écrire __!secretsanta pick__ dans une channel de commandes pour piocher quelqu'un")
 
             await message.guild.get_channel(await guildconf.logging_channel()).send(user.display_name+" s'est inscrit!")
 
