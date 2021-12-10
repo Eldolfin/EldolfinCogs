@@ -124,8 +124,10 @@ class SecretSanta(commands.Cog):
                 users.remove(picked_userid)
             await self.config.user(author).picked_user.set(picked_userid)
             picked_user = await guild.fetch_member(picked_userid)
+            # await guild.get_channel(await self.config.guild(guild).logging_channel()).send(
+            #     author.name+" a pioché ||"+picked_user.display_name+"#"+picked_user.discriminator+"||")
             await guild.get_channel(await self.config.guild(guild).logging_channel()).send(
-                author.name+" a pioché ||"+picked_user.display_name+"#"+picked_user.discriminator+"||")
+                author.name+" a pioché ||quelqu'un ;)||")
             await reveal_picked(author, picked_user)
         else:
             picked_user = await guild.fetch_member(await self.config.user(author).picked_user())
